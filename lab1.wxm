@@ -8,22 +8,25 @@ nodeAt(a, h, i) := a + h * i;
 nodeCount(a, b, h) := (b - a) / h;
 intTrap(f, a, b, h) := sum(h / 2 * (f(nodeAt(a, h, i)) + f(nodeAt(a, h, i + 1))),
     i, 0, nodeCount(a, b, h) - 1);
-intLeftRec(f, a, b, h) := sum(h * f(nodeAt(a, h, i + 1/2)), i, 0, nodeCount(a, b, h) - 1);
-intSimp(f, a, b, h) := sum(h / 6 * (
-        f(nodeAt(a, h, i))
-        + 4 * f(nodeAt(a, h, i + 1))
-        + f(nodeAt(a, h, i + 2))
+intMidRec(f, a, b, h) := sum(h * f(nodeAt(a, h, i + 1/2)), i, 0, nodeCount(a, b, h) - 1);
+intSimp(f, a, b, h) := sum(h / 3 * (
+        f(nodeAt(a, h, 2 * i))
+        + 4 * f(nodeAt(a, h, 2 * i + 1))
+        + f(nodeAt(a, h, 2 * i + 2))
     ),
-    i, 0, nodeCount(a, b, h) - 2);
+    i, 0, nodeCount(a, b, h) / 2 - 1);
 rungeErr(f, a, b, h, coeff, int) := coeff * abs(int(f, a, b, h) - int(f, a, b, h/2));
-rungeErr(f, 0, 1, 0.1, 1/3, intLeftRec);
-rungeErr(f, 0, 1, 0.1, 1/3, intTrap);
-rungeErr(f, 0, 1, 0.1, 1/15, intSimp);
-"Ints";
-intLeftRec(f, 0, 1, 0.01);
-intTrap(f, 0, 1, 0.01);
-intSimp(f, 0, 1, 0.01);
-plot2d(f(x), [x, 0, 1]);
+methods: [intMidRec, intTrap, intSimp];
+
+[H = 1/10, makelist(float(method(f, 0, 1, 1/10)), method, methods)];
+[H = 1/100, makelist(float(method(f, 0, 1, 1/100)), method, methods)];
+[RungeError, [
+    float(rungeErr(f, 0, 1, 1/10, 1/3, intMidRec)),
+    float(rungeErr(f, 0, 1, 1/10, 1/3, intTrap)),
+    float(rungeErr(f, 0, 1, 1/10, 1/15, intSimp))
+    ]
+];
+[RealIntValue = float(integrate(f(x), x, 0, 1))];
 /* [wxMaxima: input   end   ] */
 
 /* Maxima can't load/batch files which end with a comment! */
