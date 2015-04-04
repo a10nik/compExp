@@ -9,16 +9,20 @@ nodeCount(a, b, h) := (b - a) / h;
 intTrap(f, a, b, h) := sum(h / 2 * (f(nodeAt(a, h, i)) + f(nodeAt(a, h, i + 1))),
     i, 0, nodeCount(a, b, h) - 1);
 intMidRec(f, a, b, h) := sum(h * f(nodeAt(a, h, i + 1/2)), i, 0, nodeCount(a, b, h) - 1);
-intSimp(f, a, b, h) := sum(h / 6 * (
+simpIteratee(f, a, h, i) := h / 6 * (
         f(nodeAt(a, h, i))
         + 4 * f(nodeAt(a, h, i + 1/2))
-        + f(nodeAt(a, h, i + 1))
-    ),
-    i, 0, nodeCount(a, b, h) - 1);
-rungeErr(f, a, b, h, coeff, int) := coeff * abs(int(f, a, b, h) - int(f, a, b, h/2));
+        + f(nodeAt(a, h, i + 1)));
+intSimp(f, a, b, h) := sum(simpIteratee(f, a, h, i), i, 0, nodeCount(a, b, h) - 1);
+floatIntSimp(f, a, b, h) := sum(float(simpIteratee(f, a, h, i)), i, 0, nodeCount(a, b, h) - 1);
 methods: [intMidRec, intTrap, intSimp];
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+rungeErr(f, a, b, h, coeff, int) := coeff * abs(int(f, a, b, h) - int(f, a, b, h/2));
+methods;
 [H = 1/10, makelist(float(method(f1, 0, 1, 1/10)), method, methods)];
-[H = 1/100, makelist(float(method(f1, 0, 1, 1/100)), method, methods)];
+[H = 1/20, makelist(float(method(f1, 0, 1, 1/20)), method, methods)];
 [RungeError, [
     float(rungeErr(f1, 0, 1, 1/10, 1/3, intMidRec)),
     float(rungeErr(f1, 0, 1, 1/10, 1/3, intTrap)),
@@ -26,6 +30,9 @@ methods: [intMidRec, intTrap, intSimp];
     ]
 ];
 integrate('f1(x), x, 0, 1) = float(integrate(f1(x), x, 0, 1));
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
 f2(x) := 1 / (1 + x + x^2);
 plot2d(makelist([discrete, makelist(
     [   nodeCount(0, 1, 1 / (10 * i)),
@@ -34,25 +41,27 @@ plot2d(makelist([discrete, makelist(
     cons(legend, makelist(string(m), m, methods)),
     logy
 );
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
 f3(x) := 1 / (x * sqrt(1 + x^2));
 f3UpperEst(x) := 1 / x^2;
-assume(a > 0);
 rightLimit(eps) := rhs(first(
     solve(integrate(f3UpperEst(x), x, a, inf) = eps, a)
 ));
 f3Diff4(t) := at(diff(f3(x), x, 4), x = t);
-f3SimpsonStep(a, b, eps) := sublist(
+f3SimpsonStep(a, b, eps) := first(sublist(
     makelist(rhs(x), x, solve(
         h^4/180 * (b - a) * abs(f3Diff4(a)) = eps, h)),
     lambda([x], x > 0)
-);
-f3IntFrom1ToInf(eps) := intSimp(
+));
+f3IntFrom1ToInf(eps) := floatIntSimp(
     f3,
     1,
     rightLimit(eps/2),
     f3SimpsonStep(1, rightLimit(eps/2), eps/2)
 );
-float(f3IntFrom1ToInf(10^-3));
+int3: f3IntFrom1ToInf(10^-2/2);
 /* [wxMaxima: input   end   ] */
 
 /* Maxima can't load/batch files which end with a comment! */
