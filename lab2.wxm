@@ -1,0 +1,123 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 14.12.1 ] */
+
+/* [wxMaxima: input   start ] */
+kill(all);
+h(a, b, n) := (b - a) / n;
+xK(a, h, k) := a + h * k;
+limitModulo(num) := max(min(num, 1000), -1000);
+
+lab2f(x, y) := -30 * y^2 * (x - 0.4);
+lab2a : 0;
+lab2b : 1;
+lab2y0 : 1/2;
+
+realSolution : rhs(first(solve(ic1(ode2(
+    'diff(y,x) = lab2f(x, y), y, x), x = lab2a, y = lab2y0), y)));
+realY(xVal) := at(realSolution, [x = xVal]);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+eulerMethodNext(prev, h, f) := [
+    float(first(prev) + h),
+    block([prevF: f(first(prev), second(prev)), prevY: second(prev), prevX: first(prev)],
+        float(limitModulo(prevY + h * prevF))
+    )
+];
+
+cauchyEulerMethodNext(prev, h, f) := [
+    float(first(prev) + h),
+    block([prevF: f(first(prev), second(prev)), prevY: second(prev), prevX: first(prev)],
+        float(limitModulo(prevY + h * (prevF + f(prevX, prevY + h * prevF)) / 2))
+    )
+];
+
+midEulerMethodNext(prev, h, f) := [
+    float(first(prev) + h),
+    block([prevF: f(first(prev), second(prev)), prevY: second(prev), prevX: first(prev)],
+        float(limitModulo(
+            prevY + h * f(prevX + h/2, prevY + h/2*prevF)
+        ))
+    )
+];
+
+lab2BackEulerSolver : rhs(second(solve(yNext = yPrev + h * lab2f(xPrev + h, yNext), yNext)));
+
+getBackEulerMethodNext(solver) := buildq([solver], lambda([prev, h, f], [
+    float(first(prev) + h),
+    block([yPrev: second(prev), xPrev: first(prev)],
+        float(limitModulo(
+            realpart(ev(solver))
+        ))
+    )
+]));
+
+oneStepMethod(f, a, b, y0, n, k, nextF) := if k = 0 then [a, y0] else
+    nextF(oneStepMethod(f, a, b, y0, n, k - 1, nextF),
+        h(a, b, n), f);
+
+oneStepMethodList(n, nextF) := makelist(
+    oneStepMethod(lab2f, lab2a, lab2b, lab2y0, n, i, nextF),
+    i, 0, n);
+for methodDescr in [
+        [getBackEulerMethodNext(lab2BackEulerSolver), "Back Euler Method"]/*,
+        [eulerMethodNext, "Euler Method"],
+        [cauchyEulerMethodNext, "Cauchy-Euler Method"],
+        [midEulerMethodNext, "Mid-Point Euler Method"]*/
+    ] do
+plot2d([
+    realY(x),
+    [discrete, oneStepMethodList(10, first(methodDescr))],
+    [discrete, oneStepMethodList(50, first(methodDescr))],
+    [discrete, oneStepMethodList(100, first(methodDescr))]
+], [x, 0, 1], [y, -10, 10],
+    [title, second(methodDescr)],
+    [legend, "real", "n = 10", "n = 50", "n = 100"]
+);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+)
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+methodX(k, a, h) := if k = 0 then a else methodX(k-1, a, h) + h;
+methodY(k, a, h, y0, f, degree) := if k = 0 then y0 else
+    limitModulo(nextTaylorY(methodY(k - 1, a, h, y0, f, degree),
+    methodX(k - 1, a, h), f, h, degree));
+
+yDer(k, f) := if k = 1 then f(x, y(x)) else
+    subst(['diff(y(x), x) = f(x, y(x))], diff(yDer(k - 1, f), x));
+
+nextTaylorY(prevY, prevX, f, h, deg) := prevY + subst([y(x) = prevY, x = prevX],
+    sum(yDer(i, f) * h^i / i!, i, 1, deg)
+);
+lab3TaylorList(n, deg) := block([h: (lab2b - lab2a) / n], 
+    makelist([methodX(i, lab2a, h), methodY(i, lab2a, h, lab2y0, lab2f, deg)], i, 0, n)
+);
+plot2d([
+    realY(x),
+    [discrete, lab3TaylorList(10, 3)],
+    [discrete, lab3TaylorList(20, 3)],
+    [discrete, lab3TaylorList(50, 3)]
+], [x, 0, 1], [y, -10, 10],
+    [title, "3-Step Taylor"],
+    [legend, "real", "n = 10", "n = 30", "n = 50"]
+);
+plot2d([
+    realY(x),
+    [discrete, lab3TaylorList(10, 4)],
+    [discrete, lab3TaylorList(20, 4)],
+    [discrete, lab3TaylorList(50, 4)]
+], [x, 0, 1], [y, -10, 10],
+    [title, "4-Step Taylor"],
+    [legend, "real", "n = 10", "n = 30", "n = 50"]
+);
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+rest([1,2,3,4], 3);
+/* [wxMaxima: input   end   ] */
+
+/* Maxima can't load/batch files which end with a comment! */
+"Created with wxMaxima"$
