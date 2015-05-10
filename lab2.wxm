@@ -7,7 +7,7 @@ h(a, b, n) := (b - a) / n;
 xK(a, h, k) := a + h * k;
 limitModulo(num) := max(min(num, 1000), -1000);
 
-lab2f(x, y) := -30 * y^2 * (x - 0.4);
+lab2f(x, y) := -20 * y^2 * (x - 0.4);
 lab2a : 0;
 lab2b : 1;
 lab2y0 : 1/2;
@@ -41,7 +41,7 @@ midEulerMethodNext(prev, h, f) := [
 
 rungeKutta4MethodNext(prev, h, f) := [
     float(first(prev) + h),
-    block([prevF: f(first(prev), second(prev)), prevY: second(prev), prevX: first(prev)],
+    block([prevY: second(prev), prevX: first(prev)],
         k1: f(prevX, prevY),
         k2: f(prevX + h/2, prevY + h/2*k1),
         k3: f(prevX + h/2, prevY + h/2*k2),
@@ -52,14 +52,16 @@ rungeKutta4MethodNext(prev, h, f) := [
     )
 ];
 
-lab2BackEulerSolver : rhs(second(solve(yNext = yPrev + h * lab2f(xPrev + h, yNext), yNext)));
+lab2BackEulerSolution : solve(yNext = yPrev + h * lab2f(xPrev + h, yNext), yNext);
+lab2BackEulerSolver(xPrev, yPrev, h) := if abs(xPrev + h - 4/10) < 1/10000 then yPrev else
+    block([sols: ev(lab2BackEulerSolution)],
+        if abs(rhs(sols[1]) - yPrev) < abs(rhs(sols[2]) - yPrev) then
+            rhs(sols[1]) else rhs(sols[2]));
 
 getBackEulerMethodNext(solver) := buildq([solver], lambda([prev, h, f], [
     float(first(prev) + h),
     block([yPrev: second(prev), xPrev: first(prev)],
-        float(limitModulo(
-            realpart(ev(solver))
-        ))
+        float(limitModulo(realpart(solver(xPrev, yPrev, h))))
     )
 ]));
 
@@ -89,7 +91,7 @@ _x: 1;
 _y: 2;
 
 method(nextF, input, n) := block([res: endcons(nextF(input, length(input)), input)],
-    if length(res) < n then method(nextF, res, n) else res);
+    if length(res) <= n then method(nextF, res, n) else res);
 
 adams2StepMethod(f, n, a, b, init) := block([h: (b - a) / n],
     nextF: buildq([f, h], lambda([w, k],
@@ -128,10 +130,24 @@ plot2d([
     [discrete, oneStepMethodList(10, first(methodDescr))],
     [discrete, oneStepMethodList(50, first(methodDescr))],
     [discrete, oneStepMethodList(100, first(methodDescr))]
-], [x, 0, 1], [y, -10, 10],
+], [x, 0, 1],
     [title, second(methodDescr)],
     [legend, "real", "n = 10", "n = 50", "n = 100"]
 );
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+kill(getBackEulerComplexMethodNext);
+oneStepMethodList(n, nextF) := makelist(
+    oneStepMethod(lab2f, lab2a, lab2b, lab2y0, n, i, nextF),
+    i, 0, n);
+getBackEulerComplexMethodNext(solver) := buildq([solver], lambda([prev, h, f], [
+    float(first(prev) + h),
+    block([yPrev: second(prev), xPrev: first(prev)],
+          float(solver(xPrev, yPrev, h))
+    )
+]));
+plot2d([discrete, oneStepMethodList(50, getBackEulerComplexMethodNext(lab2BackEulerSolver))], [x, 0, 1]);
 /* [wxMaxima: input   end   ] */
 
 /* [wxMaxima: input   start ] */
@@ -140,7 +156,7 @@ plot2d([
     [discrete, taylorList(10, 3, lab2a, lab2b, lab2y0, lab2f)],
     [discrete, taylorList(20, 3, lab2a, lab2b, lab2y0, lab2f)],
     [discrete, taylorList(50, 3, lab2a, lab2b, lab2y0, lab2f)]
-], [x, 0, 1], [y, -10, 10],
+], [x, 0, 1],
     [title, "3-Step Taylor"],
     [legend, "real", "n = 10", "n = 30", "n = 50"]
 );
@@ -149,7 +165,7 @@ plot2d([
     [discrete, taylorList(10, 4, lab2a, lab2b, lab2y0, lab2f)],
     [discrete, taylorList(20, 4, lab2a, lab2b, lab2y0, lab2f)],
     [discrete, taylorList(50, 4, lab2a, lab2b, lab2y0, lab2f)]
-], [x, 0, 1], [y, -10, 10],
+], [x, 0, 1],
     [title, "4-Step Taylor"],
     [legend, "real", "n = 10", "n = 30", "n = 50"]
 );
@@ -176,7 +192,7 @@ plot2d([
     [discrete, lab2Adams2StepMethod(10, first(methodDescr))],
     [discrete, lab2Adams2StepMethod(50, first(methodDescr))],
     [discrete, lab2Adams2StepMethod(100, first(methodDescr))]
-], [x, 0, 1], [y, -10, 10],
+], [x, 0, 1],
     [title, concat("2-Step Adams Inited with ", second(methodDescr))],
     [legend, "real", "n = 10", "n = 50", "n = 100"]
 );
@@ -186,7 +202,7 @@ plot2d([
     [discrete, lab2Adams2StepMethod(10, first(methodDescr))],
     [discrete, lab2Adams2StepMethod(50, first(methodDescr))],
     [discrete, lab2Adams2StepMethod(100, first(methodDescr))]
-], [x, 0, 1], [y, -10, 10],
+], [x, 0, 1],
     [title, concat("3-Step Adams Inited with ", second(methodDescr))],
     [legend, "real", "n = 10", "n = 50", "n = 100"]
 );
