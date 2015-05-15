@@ -1,0 +1,156 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 14.12.1 ] */
+
+/* [wxMaxima: input   start ] */
+kill(all);
+maxNumber: 10000;
+limitModulo(num) := max(min(num, maxNumber), -maxNumber);
+
+studAlpha : 2 + 5/10;
+lab3eq : diff(y(x), x, 2) = y(x) + 2 * studAlpha + 2 + studAlpha * x * (1 - x);
+lab3f(x, y) := y + 2 * studAlpha + 2 + studAlpha * x * (1 - x);
+lab3eqWithoutDeps: subst([y(x) = y], lab3eq);
+lab3a : 0;
+lab3b : 1;
+lab3y0eq : y(0) = 0;
+lab3y1eq : at(diff(y(x), x, 1), [x=1]) = %e - 1/%e + studAlpha;
+
+lab3z1 : 1;
+lab3z2 : -1;
+
+realSol: rhs(ic2(ode2(lab3eqWithoutDeps, y, x), x=0, y=0, 'diff(y,x)=-studAlpha));
+realY(x1) := at(realSol, [x=x1]);
+
+lab3ShootingYF(x, y, z) := z;
+lab3ShootingZF(x1, y1, z1) := subst([y(x) = y1, diff(y(x), x, 1) = z1, x = x1], rhs(lab3eq));
+_x: 1;
+_y: 2;
+_z: 3;
+
+eulerMethodStep(yF, zF, h, prev) := [
+    prev[_x] + h,
+    prev[_y] + h * yF(prev[_x], prev[_y], prev[_z]),
+    prev[_z] + h * zF(prev[_x], prev[_y], prev[_z])
+];
+
+rk4MethodStep(f, g, h, prev) := block([xP: prev[_x], yP: prev[_y], zP: prev[_z]],
+    k0: h * f(xP, yP, zP),
+    l0: h * g(xP, yP, zP),
+    k1: h * f(xP + h/2, yP + k0/2, zP + l0/2),
+    l1: h * g(xP + h/2, yP + k0/2, zP + l0/2),
+    k2: h * f(xP + h/2, yP + k1/2, zP + l1/2),
+    l2: h * g(xP + h/2, yP + k1/2, zP + l1/2),
+    k3: h * f(xP + h, yP + k2, zP + l2),
+    l3: h * g(xP + h, yP + k2, zP + l2),
+[
+    xP + h,
+    yP + 1/6 * (k0 + 2*k1 + 2*k2 + k3),
+    zP + 1/6 * (l0 + 2*l1 + 2*l2 + l3)
+]);
+
+rk2MethodStep(f, g, h, prev) := block([xP: prev[_x], yP: prev[_y], zP: prev[_z]],
+    k0: h * f(xP, yP, zP),
+    l0: h * g(xP, yP, zP),
+    k1: h * f(xP + h, yP + k0, zP + l0),
+    l1: h * g(xP + h, yP + k0, zP + l0),
+[
+    xP + h,
+    yP + 1/2 * (k0 + k1),
+    zP + 1/2 * (l0 + l1)
+]);
+
+shootingMethodRec(stepF, yF, zF, h, initial, n) := block(
+    [
+        nextXYZ: stepF(yF, zF, h, last(initial))
+    ],
+    res: endcons(nextXYZ, initial),
+    if length(res) <= n then shootingMethodRec(stepF, yF, zF, h, res, n) else res
+);
+
+
+getShootingInitial(y0eq, a, z) := block([
+    ys: solve(subst([at(diff(y(x), x, 1), [x=a]) = z, y(a) = y], y0eq), y)],
+    [   
+        [a, rhs(ys[1]), z]
+    ]
+);
+currN: 10;
+lab3shoot1 : shootingMethodRec(eulerMethodStep, lab3ShootingYF, lab3ShootingZF, 0.1,
+    getShootingInitial(lab3y0eq, lab3a, lab3z1), currN);
+lab3shoot2 : shootingMethodRec(eulerMethodStep, lab3ShootingYF, lab3ShootingZF, 0.1,
+    getShootingInitial(lab3y0eq, lab3a, lab3z2), currN);
+toXY(arr) := map(lambda([i], [i[1], i[2]]), arr);
+rightConditionRhs1 : ev(subst([
+    y(1) = last(lab3shoot1)[_y], at(diff(y(x), x, 1), [x=1]) = last(lab3shoot1)[_z]
+], lhs(lab3y1eq)));
+rightConditionRhs2 : ev(subst([
+    y(1) = last(lab3shoot2)[_y], at(diff(y(x), x, 1), [x=1]) = last(lab3shoot2)[_z]
+], lhs(lab3y1eq)));
+zWanted: float(lab3z1 + (lab3z2 - lab3z1) * (rhs(lab3y1eq) - rightConditionRhs1) / (rightConditionRhs2 - rightConditionRhs1));
+wantedShootEu: shootingMethodRec(eulerMethodStep, lab3ShootingYF, lab3ShootingZF, 0.1,
+    getShootingInitial(lab3y0eq, lab3a, zWanted), currN);
+wantedConditionRhs2 : ev(subst([
+    y(1) = last(wantedShootEu)[_y], at(diff(y(x), x, 1), [x=1]) = last(wantedShootEu)[_z]
+], lhs(lab3y1eq)));
+
+lab3shoot1 : shootingMethodRec(rk2MethodStep, lab3ShootingYF, lab3ShootingZF, 0.1,
+    getShootingInitial(lab3y0eq, lab3a, lab3z1), currN);
+lab3shoot2 : shootingMethodRec(rk2MethodStep, lab3ShootingYF, lab3ShootingZF, 0.1,
+    getShootingInitial(lab3y0eq, lab3a, lab3z2), currN);
+toXY(arr) := map(lambda([i], [i[1], i[2]]), arr);
+rightConditionRhs1 : ev(subst([
+    y(1) = last(lab3shoot1)[_y], at(diff(y(x), x, 1), [x=1]) = last(lab3shoot1)[_z]
+], lhs(lab3y1eq)));
+rightConditionRhs2 : ev(subst([
+    y(1) = last(lab3shoot2)[_y], at(diff(y(x), x, 1), [x=1]) = last(lab3shoot2)[_z]
+], lhs(lab3y1eq)));
+zWanted: float(lab3z1 + (lab3z2 - lab3z1) * (rhs(lab3y1eq) - rightConditionRhs1) / (rightConditionRhs2 - rightConditionRhs1));
+wantedShootRK2: shootingMethodRec(rk2MethodStep, lab3ShootingYF, lab3ShootingZF, 0.1,
+    getShootingInitial(lab3y0eq, lab3a, zWanted), currN);
+wantedConditionRhs2 : ev(subst([
+    y(1) = last(wantedShootRK2)[_y], at(diff(y(x), x, 1), [x=1]) = last(wantedShootRK2)[_z]
+], lhs(lab3y1eq)));
+
+lab3shoot1 : shootingMethodRec(rk4MethodStep, lab3ShootingYF, lab3ShootingZF, 0.1,
+    getShootingInitial(lab3y0eq, lab3a, lab3z1), currN);
+lab3shoot2 : shootingMethodRec(rk4MethodStep, lab3ShootingYF, lab3ShootingZF, 0.1,
+    getShootingInitial(lab3y0eq, lab3a, lab3z2), currN);
+toXY(arr) := map(lambda([i], [i[1], i[2]]), arr);
+rightConditionRhs1 : ev(subst([
+    y(1) = last(lab3shoot1)[_y], at(diff(y(x), x, 1), [x=1]) = last(lab3shoot1)[_z]
+], lhs(lab3y1eq)));
+rightConditionRhs2 : ev(subst([
+    y(1) = last(lab3shoot2)[_y], at(diff(y(x), x, 1), [x=1]) = last(lab3shoot2)[_z]
+], lhs(lab3y1eq)));
+zWanted: float(lab3z1 + (lab3z2 - lab3z1) * (rhs(lab3y1eq) - rightConditionRhs1) / (rightConditionRhs2 - rightConditionRhs1));
+wantedShootRK4: shootingMethodRec(rk4MethodStep, lab3ShootingYF, lab3ShootingZF, 0.1,
+    getShootingInitial(lab3y0eq, lab3a, zWanted), currN);
+wantedConditionRhs2 : ev(subst([
+    y(1) = last(wantedShootRK4)[_y], at(diff(y(x), x, 1), [x=1]) = last(wantedShootRK4)[_z]
+], lhs(lab3y1eq)));
+
+xK(k,h) := k * h;
+fCoeff: ratcoeff(ratcoeff(ratcoeff(ev(rhs(lab3eq) - y2DerCentralApprox), y(x + h), 0), y(x - h), 0), y(x), 0);
+eqnsMid(k, h, n) := if k = 0 then 'y[0] = 0 else if k = n then 'y[n] = 'y[n-1] + h * float(rhs(lab3y1eq)) else
+    'y[k - 1] - 2 * 'y[k] + 'y[k + 1] = h^2 * lab3f(xK(k, h), 'y[k]);
+ysMid: map(rhs, solve(makelist(eqnsMid(i, 0.1, 10), i, 0, 10), makelist('y[i], i, 0, 10))[1]);
+xs: makelist(xK(i, 0.1), i, 0, 10);
+
+eqnsForward(k, h, n) := if k = 0 then 'y[0] = 0 else if k = n then 'y[n] = 'y[n-1] + h * float(rhs(lab3y1eq)) else
+    'y[k + 1] - 2 * 'y[k] + 'y[k - 1] = h^2 * lab3f(xK(k - 1, h), 'y[k - 1]);
+ysForward: map(rhs, solve(makelist(eqnsForward(i, 0.1, 10), i, 0, 10), makelist('y[i], i, 0, 10))[1]);
+
+eqnsBackward(k, h, n) := if k = 0 then 'y[0] = 0 else if k = n then 'y[n] = 'y[n-1] + h * float(rhs(lab3y1eq)) else
+    'y[k - 1] - 2 * 'y[k] + 'y[k + 1] = h^2 * lab3f(xK(k + 1, h), 'y[k + 1]);
+ysBackward: map(rhs, solve(makelist(eqnsBackward(i, 0.1, 10), i, 0, 10), makelist('y[i], i, 0, 10))[1]);
+plot2d([realY(x), [discrete, toXY(wantedShootEu)],
+                  [discrete, toXY(wantedShootRK2)],
+                  [discrete, toXY(wantedShootRK4)],
+                  [discrete, xs, ysMid], [discrete, xs, ysForward], [discrete, xs, ysBackward]
+], [x, 0, 1],
+    [title, "All Methods"],
+    [legend, "real", "Euler Shot", "RK2 Shot", "RK4 Shot", "Finite Diff Mid", "Finite Diff Forward", "Finite Diff Backward"]);
+/* [wxMaxima: input   end   ] */
+
+/* Maxima can't load/batch files which end with a comment! */
+"Created with wxMaxima"$
